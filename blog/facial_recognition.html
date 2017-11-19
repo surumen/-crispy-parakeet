@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    <title>Facial Recognition — Moses Surumen</title>
+    <meta name="description" content="An online publication about design and related ideas written by Amy Parker and Dan Perrera.">
+
+    <link rel="shortcut icon" href="../favicon.ico">
+    <link rel="apple-touch-icon" href="../apple-touch-icon-precomposed.png">
+    <link rel="icon" href="../apple-touch-icon-precomposed.png">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" type="text/css" href="../main.css" />
+    <link rel="stylesheet" type="text/css" href="../code.css" />
+    <link rel="stylesheet" href="cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css">
+    <script src="cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+    <script type="text/javascript" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-MML-AM_CHTML">
+    </script>
+    <script src="../main.js" charset="utf-8"></script>
+</head>
+
+<body class="overflow-x-hidden">
+
+    <div class="header menu-active bg-white
+    h3 vh-100-l
+    br-l b--light-gray
+    fixed-l top-0 left-0 z-max
+    flex justify-between flex-row-reverse flex-row-l items-center items-start-l">
+
+        <div class="ph4 pv0-l w-100 w-auto-l flex flex-column-l justify-between items-center">
+
+            <div class="vh-50-l flex items-end">
+                <a href="../index.html" class="no-underline">
+                    <h1 class="f4 f3-l ma0">Moses</h1>
+                </a>
+            </div>
+
+            <div class="fixed-l bottom-0 left-0 inline-flex justify-center items-center ma4-l">
+                <a href="../about.html" class="o-50 glow">
+                    <img src="../img/icon-about.svg" alt="">
+                </a>
+            </div>
+
+        </div>
+
+        <div class="menu open">
+            <a href="../index.html" class="vh-100 vh-50-l flex items-center items-end-l justify-center">
+                <img src="../img/icon-menu.svg" class="mb1" alt="">
+            </a>
+        </div>
+
+    </div>
+
+    <div id="barba-wrapper">
+        <div class="barba-container menu-active" data-namespace="post">
+
+            <div class="ph4 ph5-l">
+
+                <header class="min-vh-50-l lh-solid w-100 mt2 mb5 pt4
+      flex flex-column items-baseline justify-between">
+                    <span class="f7 ttu tracked-mega mono silver mb5">
+        Machine Learning
+      </span>
+                    <h1 class="f2 f1-m f-5-l mt2 mb0 mw7 lh-title lh-solid-l">
+        Facial Recognition using SVMs
+      </h1>
+                </header>
+
+                <div class="
+      nested-copy-seperator
+      nested-copy-line-height
+      nested-headline-line-height
+      nested-margin-first">
+                    <p class="f7 ttu tracked-mega mono silver mb2 pb3">
+                        Linear Algebra, Optimization, Probability
+                    </p>
+                    <div class="measure">
+                        <p>Facial recognition is often done on Facebook, Google Photos, among many other applications. To allow a Facebook user to tag their friends easily, Facebook often suggests the "tags" which actually tend to be very accurate. One way to do this is to use <a href="https://en.wikipedia.org/wiki/Eigenface">eigenfaces</a>. </p>
+
+                        <h4>What are Eigenfaces?</h4>
+                        <p>Eigenfaces is an appearance-based approach to facial recognition that works by capturing the variation in a collection of faces(images) and use that information to compare and encode images of individual faces in a "feature-based" manner.</p>
+
+                        <h4>What are Support Vector Machines?</h4>
+                        <p>A support vector machine is a supervised machine learning model used in both classification and regression. In classification, SVMs find a hyperplane that maximizes the margin between two classes. If the data is linearly separable based on the classes, it's straightforward. However, in cases where the data is not linearly separable, we introduce "slack variables" to account for mis-classification.</p>
+
+                        <h2 id="the-process">Loading your Dataset</h2>
+
+                        <p>We will be using faces from the <a href="http://vis-www.cs.umass.edu/lfw/lfw-funneled.tgz">Labeled Faces in the Wild</a> dataset. The dataset contains over 12,000 faces. Our task will be to learn the 5 most represented people in the dataset. We will be using Python3.4 and the stable version of the Scikit library</p>
+<p>
+<pre>
+<code>
+<span class="hljs-comment">#Import Python libraries</span>
+<span class="k">print</span> <span class="n">__doc__</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">gzip</span> <span class="kn">import</span> <span class="n">GzipFile</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pylab</span> <span class="kn">as</span> <span class="nn">pl</span>
+
+<span class="kn">from</span> <span class="nn">scikits.learn.grid_search</span> <span class="kn">import</span> <span class="n">GridSearchCV</span>
+<span class="kn">from</span> <span class="nn">scikits.learn.metrics</span> <span class="kn">import</span> <span class="n">classification_report</span>
+<span class="kn">from</span> <span class="nn">scikits.learn.metrics</span> <span class="kn">import</span> <span class="n">confusion_matrix</span>
+<span class="kn">from</span> <span class="nn">scikits.learn.pca</span> <span class="kn">import</span> <span class="n">RandomizedPCA</span>
+<span class="kn">from</span> <span class="nn">scikits.learn.svm</span> <span class="kn">import</span> <span class="n">SVC</span>
+<span class="c"># Download the data, if not already on disk</span>
+
+<span class="n">url</span> <span class="o">=</span> <span class="s">"https://downloads.sourceforge.net/project/scikit-learn/data/lfw_preprocessed.tar.gz"</span>
+<span class="n">archive_name</span> <span class="o">=</span> <span class="s">"lfw_preprocessed.tar.gz"</span>
+<span class="n">folder_name</span> <span class="o">=</span> <span class="s">"lfw_preprocessed"</span>
+
+<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">folder_name</span><span class="p">):</span>
+<span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">archive_name</span><span class="p">):</span>
+<span class="kn">import</span> <span class="nn">urllib</span>
+<span class="k">print</span> <span class="s">"Downloading data, please Wait (58.8MB)..."</span>
+<span class="k">print</span> <span class="n">url</span>
+<span class="n">opener</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+<span class="nb">open</span><span class="p">(</span><span class="n">archive_name</span><span class="p">,</span> <span class="s">'wb'</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">opener</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+<span class="k">print</span>
+
+<span class="kn">import</span> <span class="nn">tarfile</span>
+<span class="k">print</span> <span class="s">"Decompressiong the archive: "</span> <span class="o">+</span> <span class="n">archive_name</span>
+<span class="n">tarfile</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">archive_name</span><span class="p">,</span> <span class="s">"r:gz"</span><span class="p">)</span><span class="o">.</span><span class="n">extractall</span><span class="p">()</span>
+<span class="k">print</span>
+
+<span class="c">################################################################################</span>
+<span class="c"># Load dataset in memory</span>
+
+<span class="n">faces_filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder_name</span><span class="p">,</span> <span class="s">"faces.npy.gz"</span><span class="p">)</span>
+<span class="n">filenames_filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder_name</span><span class="p">,</span> <span class="s">"face_filenames.txt"</span><span class="p">)</span>
+</code>
+</pre>
+</p>
+
+                        <h2 id="getting-prepared">Convert images into column vectors</h2>
+                        <p>Our next step is to put the image pixels in an array and put the array in a column of a matrix. For example, if we had only 2 faces, we will have 2 columns in the matrix. If each face has N gray-scale pixels, we will have N rows in the matrix. We will create this matrix X from all the images in our dataset.</p>
+                        <p class="MathJax_Display" style="text-align: center;"><span class="MathJax" id="MathJax-Element-9-Frame" tabindex="0" style="text-align: center; position: relative; font-size: 113%;" data-mathml="<math xmlns=&quot;http://www.w3.org/1998/Math/MathML&quot; display=&quot;block&quot;><mi>X</mi><mo>=</mo><mrow><mo>[</mo><mtable rowspacing=&quot;4pt&quot; columnspacing=&quot;1em&quot;><mtr><mtd><msub><mi>x</mi><mrow class=&quot;MJX-TeXAtom-ORD&quot;><mn>11</mn></mrow></msub></mtd><mtd><msub><mi>x</mi><mrow class=&quot;MJX-TeXAtom-ORD&quot;><mn>12</mn></mrow></msub></mtd></mtr><mtr><mtd><mo>&amp;#x22EE;</mo></mtd><mtd><mo>&amp;#x22EE;</mo></mtd></mtr><mtr><mtd><msub><mi>x</mi><mrow class=&quot;MJX-TeXAtom-ORD&quot;><mi>N</mi><mn>1</mn></mrow></msub></mtd><mtd><msub><mi>x</mi><mrow class=&quot;MJX-TeXAtom-ORD&quot;><mi>N</mi><mn>2</mn></mrow></msub></mtd></mtr></mtable><mo>]</mo></mrow></math>" role="presentation"><nobr aria-hidden="true"><span class="math" id="MathJax-Span-31" style="width: 8.727em; display: inline-block;"><span style="display: inline-block; position: relative; width: 7.146em; height: 0px; font-size: 122%;"><span style="position: absolute; clip: rect(2.169em 1007.09em 6.619em -999.997em); top: -4.622em; left: 0em;"><span class="mrow" id="MathJax-Span-32"><span class="mi" id="MathJax-Span-33" style="font-family: STIXGeneral; font-style: italic;">X<span style="display: inline-block; overflow: hidden; height: 1px; width: 0.061em;"></span></span><span class="mo" id="MathJax-Span-34" style="font-family: STIXGeneral; padding-left: 0.296em;">=</span><span class="mrow" id="MathJax-Span-35" style="padding-left: 0.296em;"><span class="mo" id="MathJax-Span-36" style="vertical-align: 2.286em;"><span style="display: inline-block; position: relative; width: 0.471em; height: 0px;"><span style="position: absolute; font-family: STIXSizeOneSym; top: -3.276em; left: 0em;">⎡<span style="display: inline-block; width: 0px; height: 3.984em;"></span></span><span style="position: absolute; font-family: STIXSizeOneSym; top: -0.173em; left: 0em;">⎣<span style="display: inline-block; width: 0px; height: 3.984em;"></span></span><span style="font-family: STIXSizeOneSym; position: absolute; top: -2.515em; left: 0em;">⎢<span style="display: inline-block; width: 0px; height: 3.984em;"></span></span><span style="font-family: STIXSizeOneSym; position: absolute; top: -1.754em; left: 0em;">⎢<span style="display: inline-block; width: 0px; height: 3.984em;"></span></span><span style="font-family: STIXSizeOneSym; position: absolute; top: -0.992em; left: 0em;">⎢<span style="display: inline-block; width: 0px; height: 3.984em;"></span></span>
+                            </span>
+                            </span><span class="mtable" id="MathJax-Span-37" style="padding-right: 0.179em; padding-left: 0.179em;"><span style="display: inline-block; position: relative; width: 3.926em; height: 0px;"><span style="position: absolute; clip: rect(2.579em 1001.41em 6.619em -999.997em); top: -4.681em; left: 0em;"><span style="display: inline-block; position: relative; width: 1.408em; height: 0px;"><span style="position: absolute; clip: rect(3.34em 1001.23em 4.335em -999.997em); top: -5.501em; left: 50%; margin-left: -0.583em;"><span class="mtd" id="MathJax-Span-38"><span class="mrow" id="MathJax-Span-39"><span class="msubsup" id="MathJax-Span-40"><span style="display: inline-block; position: relative; width: 1.232em; height: 0px;"><span style="position: absolute; clip: rect(3.34em 1000.47em 4.16em -999.997em); top: -3.978em; left: 0em;"><span class="mi" id="MathJax-Span-41" style="font-family: STIXGeneral; font-style: italic;">x<span style="display: inline-block; overflow: hidden; height: 1px; width: 0.003em;"></span></span><span style="display: inline-block; width: 0px; height: 3.984em;"></span></span><span style="position: absolute; top: -3.803em; left: 0.471em;"><span class="texatom" id="MathJax-Span-42"><span class="mrow" id="MathJax-Span-43"><span class="mn" id="MathJax-Span-44" style="font-size: 70.7%; font-family: STIXGeneral;">11</span></span>
+                            </span><span style="display: inline-block; width: 0px; height: 3.984em;"></span></span>
+                            </span>
+                            </span>
+                            </span>
+                            </span><span style="display: inline-block; width: 0px; height: 3.984em;"></span></span><span style="position: absolute; clip: rect(2.813em 1000.3em 4.277em -999.997em); top: -3.803em; left: 50%; margin-left: -0.231em;"><span class="mtd" id="MathJax-Span-52"><span class="mrow" id="MathJax-Span-53"><span class="mo" id="MathJax-Span-54" style="font-family: STIXGeneral;">⋮</span></span>
+                            </span><span style="display: inline-block; width: 0px; height: 3.984em;"></span></span><span style="position: absolute; clip: rect(3.34em 1001.41em 4.335em -999.997em); top: -2.398em; left: 50%; margin-left: -0.7em;"><span class="mtd" id="MathJax-Span-58"><span class="mrow" id="MathJax-Span-59"><span class="msubsup" id="MathJax-Span-60"><span style="display: inline-block; position: relative; width: 1.408em; height: 0px;"><span style="position: absolute; clip: rect(3.34em 1000.47em 4.16em -999.997em); top: -3.978em; left: 0em;"><span class="mi" id="MathJax-Span-61" style="font-family: STIXGeneral; font-style: italic;">x<span style="display: inline-block; overflow: hidden; height: 1px; width: 0.003em;"></span></span><span style="display: inline-block; width: 0px; height: 3.984em;"></span></span><span style="position: absolute; top: -3.803em; left: 0.471em;"><span class="texatom" id="MathJax-Span-62"><span class="mrow" id="MathJax-Span-63"><span class="mi" id="MathJax-Span-64" style="font-size: 70.7%; font-family: STIXGeneral; font-style: italic;">N<span style="display: inline-block; overflow: hidden; height: 1px; width: 0.061em;"></span></span><span class="mn" id="MathJax-Span-65" style="font-size: 70.7%; font-family: STIXGeneral;">1</span></span>
+                            </span><span style="display: inline-block; width: 0px; height: 3.984em;"></span></span>
+                            </span>
+                            </span>
+                            </span>
+                            </span><span style="display: inline-block; width: 0px; height: 3.984em;"></span></span>
+                            </span><span style="display: inline-block; width: 0px; height: 4.687em;"></span></span><span style="position: absolute; clip: rect(2.579em 1001.41em 6.619em -999.997em); top: -4.681em; left: 2.52em;"><span style="display: inline-block; position: relative; width: 1.408em; height: 0px;"><span style="position: absolute; clip: rect(3.34em 1001.23em 4.335em -999.997em); top: -5.501em; left: 50%; margin-left: -0.583em;"><span class="mtd" id="MathJax-Span-45"><span class="mrow" id="MathJax-Span-46"><span class="msubsup" id="MathJax-Span-47"><span style="display: inline-block; position: relative; width: 1.232em; height: 0px;"><span style="position: absolute; clip: rect(3.34em 1000.47em 4.16em -999.997em); top: -3.978em; left: 0em;"><span class="mi" id="MathJax-Span-48" style="font-family: STIXGeneral; font-style: italic;">x<span style="display: inline-block; overflow: hidden; height: 1px; width: 0.003em;"></span></span><span style="display: inline-block; width: 0px; height: 3.984em;"></span></span><span style="position: absolute; top: -3.803em; left: 0.471em;"><span class="texatom" id="MathJax-Span-49"><span class="mrow" id="MathJax-Span-50"><span class="mn" id="MathJax-Span-51" style="font-size: 70.7%; font-family: STIXGeneral;">12</span></span>
+                            </span><span style="display: inline-block; width: 0px; height: 3.984em;"></span></span>
+                            </span>
+                            </span>
+                            </span>
+                            </span><span style="display: inline-block; width: 0px; height: 3.984em;"></span></span><span style="position: absolute; clip: rect(2.813em 1000.3em 4.277em -999.997em); top: -3.803em; left: 50%; margin-left: -0.231em;"><span class="mtd" id="MathJax-Span-55"><span class="mrow" id="MathJax-Span-56"><span class="mo" id="MathJax-Span-57" style="font-family: STIXGeneral;">⋮</span></span>
+                            </span><span style="display: inline-block; width: 0px; height: 3.984em;"></span></span><span style="position: absolute; clip: rect(3.34em 1001.41em 4.335em -999.997em); top: -2.398em; left: 50%; margin-left: -0.7em;"><span class="mtd" id="MathJax-Span-66"><span class="mrow" id="MathJax-Span-67"><span class="msubsup" id="MathJax-Span-68"><span style="display: inline-block; position: relative; width: 1.408em; height: 0px;"><span style="position: absolute; clip: rect(3.34em 1000.47em 4.16em -999.997em); top: -3.978em; left: 0em;"><span class="mi" id="MathJax-Span-69" style="font-family: STIXGeneral; font-style: italic;">x<span style="display: inline-block; overflow: hidden; height: 1px; width: 0.003em;"></span></span><span style="display: inline-block; width: 0px; height: 3.984em;"></span></span><span style="position: absolute; top: -3.803em; left: 0.471em;"><span class="texatom" id="MathJax-Span-70"><span class="mrow" id="MathJax-Span-71"><span class="mi" id="MathJax-Span-72" style="font-size: 70.7%; font-family: STIXGeneral; font-style: italic;">N<span style="display: inline-block; overflow: hidden; height: 1px; width: 0.061em;"></span></span><span class="mn" id="MathJax-Span-73" style="font-size: 70.7%; font-family: STIXGeneral;">2</span></span>
+                            </span><span style="display: inline-block; width: 0px; height: 3.984em;"></span></span>
+                            </span>
+                            </span>
+                            </span>
+                            </span><span style="display: inline-block; width: 0px; height: 3.984em;"></span></span>
+                            </span><span style="display: inline-block; width: 0px; height: 4.687em;"></span></span>
+                            </span>
+                            </span><span class="mo" id="MathJax-Span-74" style="vertical-align: 2.286em;"><span style="display: inline-block; position: relative; width: 0.471em; height: 0px;"><span style="position: absolute; font-family: STIXSizeOneSym; top: -3.276em; left: 0em;">⎤<span style="display: inline-block; width: 0px; height: 3.984em;"></span></span><span style="position: absolute; font-family: STIXSizeOneSym; top: -0.173em; left: 0em;">⎦<span style="display: inline-block; width: 0px; height: 3.984em;"></span></span><span style="font-family: STIXSizeOneSym; position: absolute; top: -2.515em; left: 0em;">⎥<span style="display: inline-block; width: 0px; height: 3.984em;"></span></span><span style="font-family: STIXSizeOneSym; position: absolute; top: -1.754em; left: 0em;">⎥<span style="display: inline-block; width: 0px; height: 3.984em;"></span></span><span style="font-family: STIXSizeOneSym; position: absolute; top: -0.992em; left: 0em;">⎥<span style="display: inline-block; width: 0px; height: 3.984em;"></span></span>
+                            </span>
+                            </span>
+                            </span>
+                            </span><span style="display: inline-block; width: 0px; height: 4.628em;"></span></span>
+                            </span><span style="display: inline-block; overflow: hidden; vertical-align: -2.282em; border-left: 0px solid; width: 0px; height: 5.146em;"></span></span>
+                            </nobr><span class="MJX_Assistive_MathML MJX_Assistive_MathML_Block" role="presentation"><span class="MathJax_Preview" style="color: inherit; display: none;"></span><span class="mjx-chtml MJXc-display" style="text-align: center;"><span id="MathJax-Element-1-Frame" class="mjx-chtml MathJax_CHTML" tabindex="0" style="font-size: 113%; text-align: center; position: relative;" data-mathml="<math xmlns=&quot;http://www.w3.org/1998/Math/MathML&quot; display=&quot;block&quot;><mi>X</mi><mo>=</mo><mrow><mo>[</mo><mtable rowspacing=&quot;4pt&quot; columnspacing=&quot;1em&quot;><mtr><mtd><msub><mi>x</mi><mrow class=&quot;MJX-TeXAtom-ORD&quot;><mn>11</mn></mrow></msub></mtd><mtd><msub><mi>x</mi><mrow class=&quot;MJX-TeXAtom-ORD&quot;><mn>12</mn></mrow></msub></mtd></mtr><mtr><mtd><mo>&amp;#x22EE;</mo></mtd><mtd><mo>&amp;#x22EE;</mo></mtd></mtr><mtr><mtd><msub><mi>x</mi><mrow class=&quot;MJX-TeXAtom-ORD&quot;><mi>N</mi><mn>1</mn></mrow></msub></mtd><mtd><msub><mi>x</mi><mrow class=&quot;MJX-TeXAtom-ORD&quot;><mi>N</mi><mn>2</mn></mrow></msub></mtd></mtr></mtable><mo>]</mo></mrow></math>" role="presentation"><span id="MJXc-Node-1" class="mjx-math" aria-hidden="true"><span id="MJXc-Node-2" class="mjx-mrow"><span id="MJXc-Node-3" class="mjx-mi"><span class="mjx-char MJXc-TeX-math-I" style="padding-top: 0.445em; padding-bottom: 0.279em; padding-right: 0.024em;">X</span></span><span id="MJXc-Node-4" class="mjx-mo MJXc-space3"><span class="mjx-char MJXc-TeX-main-R" style="padding-top: 0.058em; padding-bottom: 0.335em;">=</span></span><span id="MJXc-Node-5" class="mjx-mrow MJXc-space3"><span id="MJXc-Node-6" class="mjx-mo" style="vertical-align: -1.243em;"><span class="mjx-delim-v"><span class="mjx-char MJXc-TeX-size4-R" style="padding-top: 0.943em; padding-bottom: 0.943em;">⎡</span><span class="mjx-char MJXc-TeX-size4-R" style="line-height: 0.363em; margin-bottom: -0.101em; margin-top: 0px;">⎢
+⎢</span><span class="mjx-char MJXc-TeX-size4-R" style="padding-top: 0.943em; padding-bottom: 0.943em;">⎣</span></span>
+                            </span><span id="MJXc-Node-7" class="mjx-mtable" style="vertical-align: -1.912em; padding: 0px 0.167em;"><span class="mjx-table"><span id="MJXc-Node-8" class="mjx-mtr" style="height: 1.2em;"><span id="MJXc-Node-9" class="mjx-mtd" style="padding: 0px 0.5em 0px 0px; width: 1.589em;"><span id="MJXc-Node-10" class="mjx-mrow" style="margin-top: -0.2em;"><span id="MJXc-Node-11" class="mjx-msub"><span class="mjx-base"><span id="MJXc-Node-12" class="mjx-mi"><span class="mjx-char MJXc-TeX-math-I" style="padding-top: 0.224em; padding-bottom: 0.279em;">x</span></span>
+                            </span><span class="mjx-sub" style="font-size: 70.7%; vertical-align: -0.212em; padding-right: 0.071em;"><span id="MJXc-Node-13" class="mjx-texatom" style=""><span id="MJXc-Node-14" class="mjx-mrow"><span id="MJXc-Node-15" class="mjx-mn"><span class="mjx-char MJXc-TeX-main-R" style="padding-top: 0.39em; padding-bottom: 0.335em;">11</span></span>
+                            </span>
+                            </span>
+                            </span>
+                            </span><span class="mjx-strut"></span></span>
+                            </span><span id="MJXc-Node-16" class="mjx-mtd" style="padding: 0px 0px 0px 0.5em; width: 1.589em;"><span id="MJXc-Node-17" class="mjx-mrow" style="margin-top: -0.2em;"><span id="MJXc-Node-18" class="mjx-msub"><span class="mjx-base"><span id="MJXc-Node-19" class="mjx-mi"><span class="mjx-char MJXc-TeX-math-I" style="padding-top: 0.224em; padding-bottom: 0.279em;">x</span></span>
+                            </span><span class="mjx-sub" style="font-size: 70.7%; vertical-align: -0.212em; padding-right: 0.071em;"><span id="MJXc-Node-20" class="mjx-texatom" style=""><span id="MJXc-Node-21" class="mjx-mrow"><span id="MJXc-Node-22" class="mjx-mn"><span class="mjx-char MJXc-TeX-main-R" style="padding-top: 0.39em; padding-bottom: 0.335em;">12</span></span>
+                            </span>
+                            </span>
+                            </span>
+                            </span><span class="mjx-strut"></span></span>
+                            </span>
+                            </span><span id="MJXc-Node-23" class="mjx-mtr" style="height: 1.925em;"><span id="MJXc-Node-24" class="mjx-mtd" style="padding: 0.2em 0.5em 0px 0px;"><span id="MJXc-Node-25" class="mjx-mrow"><span id="MJXc-Node-26" class="mjx-mo"><span class="mjx-char MJXc-TeX-main-R" style="padding-top: 0.998em; padding-bottom: 0.39em;">⋮</span></span><span class="mjx-strut"></span></span>
+                            </span><span id="MJXc-Node-27" class="mjx-mtd" style="padding: 0.2em 0px 0px 0.5em;"><span id="MJXc-Node-28" class="mjx-mrow"><span id="MJXc-Node-29" class="mjx-mo"><span class="mjx-char MJXc-TeX-main-R" style="padding-top: 0.998em; padding-bottom: 0.39em;">⋮</span></span><span class="mjx-strut"></span></span>
+                            </span>
+                            </span><span id="MJXc-Node-30" class="mjx-mtr" style="height: 1.2em;"><span id="MJXc-Node-31" class="mjx-mtd" style="padding: 0.2em 0.5em 0px 0px;"><span id="MJXc-Node-32" class="mjx-mrow" style="margin-top: -0.2em;"><span id="MJXc-Node-33" class="mjx-msub"><span class="mjx-base"><span id="MJXc-Node-34" class="mjx-mi"><span class="mjx-char MJXc-TeX-math-I" style="padding-top: 0.224em; padding-bottom: 0.279em;">x</span></span>
+                            </span><span class="mjx-sub" style="font-size: 70.7%; vertical-align: -0.212em; padding-right: 0.071em;"><span id="MJXc-Node-35" class="mjx-texatom" style=""><span id="MJXc-Node-36" class="mjx-mrow"><span id="MJXc-Node-37" class="mjx-mi"><span class="mjx-char MJXc-TeX-math-I" style="padding-top: 0.445em; padding-bottom: 0.279em; padding-right: 0.085em;">N</span></span><span id="MJXc-Node-38" class="mjx-mn"><span class="mjx-char MJXc-TeX-main-R" style="padding-top: 0.39em; padding-bottom: 0.335em;">1</span></span>
+                            </span>
+                            </span>
+                            </span>
+                            </span><span class="mjx-strut"></span></span>
+                            </span><span id="MJXc-Node-39" class="mjx-mtd" style="padding: 0.2em 0px 0px 0.5em;"><span id="MJXc-Node-40" class="mjx-mrow" style="margin-top: -0.2em;"><span id="MJXc-Node-41" class="mjx-msub"><span class="mjx-base"><span id="MJXc-Node-42" class="mjx-mi"><span class="mjx-char MJXc-TeX-math-I" style="padding-top: 0.224em; padding-bottom: 0.279em;">x</span></span>
+                            </span><span class="mjx-sub" style="font-size: 70.7%; vertical-align: -0.212em; padding-right: 0.071em;"><span id="MJXc-Node-43" class="mjx-texatom" style=""><span id="MJXc-Node-44" class="mjx-mrow"><span id="MJXc-Node-45" class="mjx-mi"><span class="mjx-char MJXc-TeX-math-I" style="padding-top: 0.445em; padding-bottom: 0.279em; padding-right: 0.085em;">N</span></span><span id="MJXc-Node-46" class="mjx-mn"><span class="mjx-char MJXc-TeX-main-R" style="padding-top: 0.39em; padding-bottom: 0.335em;">2</span></span>
+                            </span>
+                            </span>
+                            </span>
+                            </span><span class="mjx-strut"></span></span>
+                            </span>
+                            </span>
+                            </span>
+                            </span><span id="MJXc-Node-47" class="mjx-mo" style="vertical-align: -1.243em;"><span class="mjx-delim-v"><span class="mjx-char MJXc-TeX-size4-R" style="padding-top: 0.943em; padding-bottom: 0.943em;">⎤</span><span class="mjx-char MJXc-TeX-size4-R" style="line-height: 0.363em; margin-bottom: -0.101em; margin-top: 0px;">⎥
+⎥</span><span class="mjx-char MJXc-TeX-size4-R" style="padding-top: 0.943em; padding-bottom: 0.943em;">⎦</span></span>
+                            </span>
+                            </span>
+                            </span>
+                            </span><span class="MJX_Assistive_MathML MJX_Assistive_MathML_Block" role="presentation"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mi>X</mi><mo>=</mo><mrow><mo>[</mo><mtable rowspacing="4pt" columnspacing="1em"><mtr><mtd><msub><mi>x</mi><mrow class="MJX-TeXAtom-ORD"><mn>11</mn></mrow></msub></mtd><mtd><msub><mi>x</mi><mrow class="MJX-TeXAtom-ORD"><mn>12</mn></mrow></msub></mtd></mtr><mtr><mtd><mo>⋮</mo></mtd><mtd><mo>⋮</mo></mtd></mtr><mtr><mtd><msub><mi>x</mi><mrow class="MJX-TeXAtom-ORD"><mi>N</mi><mn>1</mn></mrow></msub></mtd><mtd><msub><mi>x</mi><mrow class="MJX-TeXAtom-ORD"><mi>N</mi><mn>2</mn></mrow></msub></mtd></mtr></mtable><mo>]</mo></mrow></math></span></span>
+                            </span>
+                            <script type="math/mml" id="MathJax-Element-1">
+                                <math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
+                                    <mi>X</mi>
+                                    <mo>=</mo>
+                                    <mrow>
+                                        <mo>[</mo>
+                                        <mtable rowspacing="4pt" columnspacing="1em">
+                                            <mtr>
+                                                <mtd>
+                                                    <msub>
+                                                        <mi>x</mi>
+                                                        <mrow class="MJX-TeXAtom-ORD">
+                                                            <mn>11</mn>
+                                                        </mrow>
+                                                    </msub>
+                                                </mtd>
+                                                <mtd>
+                                                    <msub>
+                                                        <mi>x</mi>
+                                                        <mrow class="MJX-TeXAtom-ORD">
+                                                            <mn>12</mn>
+                                                        </mrow>
+                                                    </msub>
+                                                </mtd>
+                                            </mtr>
+                                            <mtr>
+                                                <mtd>
+                                                    <mo>⋮</mo>
+                                                </mtd>
+                                                <mtd>
+                                                    <mo>⋮</mo>
+                                                </mtd>
+                                            </mtr>
+                                            <mtr>
+                                                <mtd>
+                                                    <msub>
+                                                        <mi>x</mi>
+                                                        <mrow class="MJX-TeXAtom-ORD">
+                                                            <mi>N</mi>
+                                                            <mn>1</mn>
+                                                        </mrow>
+                                                    </msub>
+                                                </mtd>
+                                                <mtd>
+                                                    <msub>
+                                                        <mi>x</mi>
+                                                        <mrow class="MJX-TeXAtom-ORD">
+                                                            <mi>N</mi>
+                                                            <mn>2</mn>
+                                                        </mrow>
+                                                    </msub>
+                                                </mtd>
+                                            </mtr>
+                                        </mtable>
+                                        <mo>]</mo>
+                                    </mrow>
+                                </math>
+                            </script>
+                            </span>
+                            </span>
+                        </p>
+
+
+
+                        <p>Our matrix X is definitely very large, and computation would take long. This is where eigenfaces comes in handy. We would do dimensionality reduction on the matrix X. Dimensionality reduction refers to the process of converting a set of data with vast dimensions into lesser dimensions while ensuring that the resulting data conveys similar information concisely. This will help us reduce the storage space required, and fastens the time required for performing computations. This also takes care of multi-collinearity in the columns of the matrix X (removing redundant feautures).</p>
+
+                        <h2 id="getting-prepared">Calculating the mean and normalizing</h2>
+                        <p>We would need to normalize our data inorder to maximize the variance. Normalization projects our original data onto directions which maximize the variance (called principal components). This is why eigenfaces is also referred to as principal component analysis (PCA). When data is represented as a matrix, normalization would mean transforming each vector in the matrix so that it has unit norm. When data is just random variables, normalization would mean tranforming the data to a normal distribution.</p>
+<pre>
+<code>
+<span class="n">faces</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">GzipFile</span><span class="p">(</span><span class="n">faces_filename</span><span class="p">))</span>
+<span class="n">face_filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">file</span><span class="p">(</span><span class="n">filenames_filename</span><span class="p">)</span><span class="o">.</span><span class="n">readlines</span><span class="p">()]</span>
+
+<span class="c"># normalize each picture by centering brightness</span>
+<span class="n">faces</span> <span class="o">-=</span> <span class="n">faces</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+</code>
+</pre>
+                        <h2 id="getting-prepared">Creating a Lookup Table</h2>
+
+                        <p>A lookup table is just an array that replaces runtime computation with a simpler array indexing operation. Retrieving a value from memory is faster than doing computation each time we need to use the value.</p>
+<pre>
+<code>
+<span class="c"># Index category names into integers suitable for scikit-learn</span>
+<span class="n">categories</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">f</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s">'_'</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">face_filenames</span><span class="p">])</span>
+
+<span class="c"># A unique integer per category</span>
+<span class="n">category_names</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">categories</span><span class="p">)</span>
+
+<span class="c"># Turn the categories in their corresponding integer label</span>
+<span class="n">target</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">category_names</span><span class="p">,</span> <span class="n">categories</span><span class="p">)</span>
+
+<span class="c"># Subsample the dataset to restrict to the most frequent categories</span>
+<span class="n">selected_target</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">target</span><span class="p">))[</span><span class="o">-</span><span class="mi">5</span><span class="p">:]</span>
+
+<span class="c"># If you are using a numpy version &gt;= 1.4, this can be done with 'np.in1d'</span>
+<span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">item</span> <span class="ow">in</span> <span class="n">selected_target</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">target</span><span class="p">])</span>
+
+<span class="n">X</span> <span class="o">=</span> <span class="n">faces</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">target</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+
+<span class="n">n_samples</span><span class="p">,</span> <span class="n">n_features</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span>
+
+<span class="k">print</span> <span class="s">"Dataset size:"</span>
+<span class="k">print</span> <span class="s">"n_samples: </span><span class="si">%d</span><span class="s">"</span> <span class="o">%</span> <span class="n">n_samples</span>
+<span class="k">print</span> <span class="s">"n_features: </span><span class="si">%d</span><span class="s">"</span> <span class="o">%</span> <span class="n">n_features</span>
+<span class="n">split</span> <span class="o">=</span> <span class="n">n_samples</span> <span class="o">*</span> <span class="mi">3</span> <span class="o">/</span> <span class="mi">4</span>
+
+<span class="n">X_train</span><span class="p">,</span> <span class="n">X_test</span> <span class="o">=</span> <span class="n">X</span><span class="p">[:</span><span class="n">split</span><span class="p">],</span> <span class="n">X</span><span class="p">[</span><span class="n">split</span><span class="p">:]</span>
+<span class="n">y_train</span><span class="p">,</span> <span class="n">y_test</span> <span class="o">=</span> <span class="n">y</span><span class="p">[:</span><span class="n">split</span><span class="p">],</span> <span class="n">y</span><span class="p">[</span><span class="n">split</span><span class="p">:]</span>
+</code>
+</pre>
+
+                        <h2 id="understanding-our-client">Compute the principal components</h2>
+
+                        <p>We are now ready to do a principal component analysis (PCA) on our face dataset (treated as unlabelled). This process is also referred to as feature extraction or just dimensionaly reduction as we mentioned earlier.</p>
+<pre>
+<code>
+<span class="n">n_components</span> <span class="o">=</span> <span class="mi">150</span>
+
+<span class="k">print</span> <span class="s">"Extracting the top </span><span class="si">%d</span><span class="s"> eigenfaces"</span> <span class="o">%</span> <span class="n">n_components</span>
+<span class="n">pca</span> <span class="o">=</span> <span class="n">RandomizedPCA</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span> <span class="n">whiten</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">)</span>
+
+<span class="n">eigenfaces</span> <span class="o">=</span> <span class="n">pca</span><span class="o">.</span><span class="n">components_</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">n_components</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">))</span>
+
+<span class="c"># project the input data on the eigenfaces orthonormal basis</span>
+<span class="n">X_train_pca</span> <span class="o">=</span> <span class="n">pca</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">X_train</span><span class="p">)</span>
+<span class="n">X_test_pca</span> <span class="o">=</span> <span class="n">pca</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">X_test</span><span class="p">)</span>
+</code>
+</pre>
+
+                        <h2 id="interviewing-the-audience">Train a Support Vector Machine model</h2>
+
+                        <p>As we mentioned in the introduction, a support vector machine works by finding a hyperplane that maximizes the margin between different classes in our dataset. In this case, our data is not linearly separable so we would need to introduce 'slack variables'. Our model will then find the hyperplane that maximizes the margin and minimizes misclassifications. Our algorithm will try to maintain the slack variable at zero while maximizing the margin. However, it does not minimize the number of misclassifications, but rather the sum of distances from the margin (NP-complete problem).</p>
+                        <p>A nonlinear region would separate the classes in our dataset more effectively. Our model handles this by using a non-linear kernel function to map the data into a different space where a linear hyperplane cannot be used to do the separation. (The kernel function transforms the data into a higher dimensional feature space to make it possible to perform linear separation). There are many kernel function. We will use a radial basis kernel function (rbf) to train our model.</p>
+<pre>
+<code>
+<span class="k">print</span> <span class="s">"Fitting the classifier to the training set"</span>
+<span class="n">param_grid</span> <span class="o">=</span> <span class="p">{</span>
+ <span class="s">'C'</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">100</span><span class="p">],</span>
+ <span class="s">'gamma'</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.0001</span><span class="p">,</span> <span class="mf">0.0005</span><span class="p">,</span> <span class="mf">0.001</span><span class="p">,</span> <span class="mf">0.005</span><span class="p">,</span> <span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">],</span>
+<span class="p">}</span>
+<span class="n">clf</span> <span class="o">=</span> <span class="n">GridSearchCV</span><span class="p">(</span><span class="n">SVC</span><span class="p">(</span><span class="n">kernel</span><span class="o">=</span><span class="s">'rbf'</span><span class="p">),</span> <span class="n">param_grid</span><span class="p">,</span>
+                   <span class="n">fit_params</span><span class="o">=</span><span class="p">{</span><span class="s">'class_weight'</span><span class="p">:</span> <span class="s">'auto'</span><span class="p">})</span>
+<span class="n">clf</span> <span class="o">=</span> <span class="n">clf</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train_pca</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
+<span class="k">print</span> <span class="s">"Best estimator found by grid search:"</span>
+<span class="k">print</span> <span class="n">clf</span><span class="o">.</span><span class="n">best_estimator</span>
+</code>
+</pre>
+                        <h2 id="summing-it-up">Evaluating our model</h2>
+
+                        <p>We will now do a quantitative evaluation of our model quality on the test set.</p>
+<pre>
+<code>
+<span class="n">y_pred</span> <span class="o">=</span> <span class="n">clf</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_test_pca</span><span class="p">)</span>
+<span class="k">print</span> <span class="n">classification_report</span><span class="p">(</span><span class="n">y_test</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">selected_target</span><span class="p">,</span>
+                            <span class="n">class_names</span><span class="o">=</span><span class="n">category_names</span><span class="p">[</span><span class="n">selected_target</span><span class="p">])</span>
+
+<span class="k">print</span> <span class="n">confusion_matrix</span><span class="p">(</span><span class="n">y_test</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">selected_target</span><span class="p">)</span>
+</code>
+</pre>
+
+                        <h2 id="practicing-our-art">Summming it up</h2>
+
+                        <p>Finally we can now do a qualitative evaluation of the predictions from our model. We will plot the top 5 most represented people in our dataset.</p>
+<pre>
+<code>
+<span class="n">n_row</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="n">n_col</span> <span class="o">=</span> <span class="mi">4</span>
+
+<span class="n">pl</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">n_col</span><span class="p">,</span> <span class="mf">2.3</span> <span class="o">*</span> <span class="n">n_row</span><span class="p">))</span>
+<span class="n">pl</span><span class="o">.</span><span class="n">subplots_adjust</span><span class="p">(</span><span class="n">bottom</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">left</span><span class="o">=.</span><span class="mo">01</span><span class="p">,</span> <span class="n">right</span><span class="o">=.</span><span class="mi">99</span><span class="p">,</span> <span class="n">top</span><span class="o">=.</span><span class="mi">95</span><span class="p">,</span> <span class="n">hspace</span><span class="o">=.</span><span class="mi">15</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_row</span> <span class="o">*</span> <span class="n">n_col</span><span class="p">):</span>
+    <span class="n">pl</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="n">n_row</span><span class="p">,</span> <span class="n">n_col</span><span class="p">,</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">pl</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">X_test</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">)),</span> <span class="n">cmap</span><span class="o">=</span><span class="n">pl</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">gray</span><span class="p">)</span>
+    <span class="n">pl</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s">'pred: </span><span class="si">%s</span><span class="se">\n</span><span class="s">true: </span><span class="si">%s</span><span class="s">'</span> <span class="o">%</span> <span class="p">(</span><span class="n">category_names</span><span class="p">[</span><span class="n">y_pred</span><span class="p">[</span><span class="n">i</span><span class="p">]],</span>
+                                     <span class="n">category_names</span><span class="p">[</span><span class="n">y_test</span><span class="p">[</span><span class="n">i</span><span class="p">]]),</span> <span class="n">size</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+    <span class="n">pl</span><span class="o">.</span><span class="n">xticks</span><span class="p">(())</span>
+    <span class="n">pl</span><span class="o">.</span><span class="n">yticks</span><span class="p">(())</span>
+
+<span class="n">pl</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</code>
+</pre>
+                        <p>The expected results are shown below.
+                            <img src="../img/faces.png">
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+
+
+
+            <div class="bt bb b--light-gray flex content-stretch justify-end mt6">
+
+                <a class="hover-bg-near-white no-underline 
+        flex items-center w-50 pv3 pv4-ns ph4 ph5-l" href="better-together/index.html%3Fnext.html">
+                    <img src="../img/icon-arrow.svg" alt="Better Together">
+                    <span class="pl3 dn db-l">
+            Better Together
+          </span>
+                </a>
+
+
+
+                <a class="hover-bg-near-white no-underline 
+        flex items-center justify-end w-50 tr pv3 pv4-ns ph4 ph5-l bl b--light-gray" href="why-not-learn-to-code/index.html%3Fprev.html">
+                    <span class="pr3 dn db-l">
+            Why Not Learn to Code?
+          </span>
+                    <img class="rotate-180" src="../img/icon-arrow.svg" alt="Why Not Learn to Code?">
+                </a>
+
+            </div>
+
+
+            <div class="mh4 mh5-l pv3 pv4-l gray f7 flex-ns justify-between items-center">
+                <div class="mv3 mv0-ns inline-flex items-center">
+                    <a href="https://foredesign.co" class="o-50 glow no-underline mr3">
+                        <img src="../img/icon-fore.svg" alt="Fore Design">
+                    </a>
+                    <a href="https://twitter.com/foredesignco" class="o-50 glow no-underline mr3">
+                        <img src="../img/icon-twitter.svg" alt="Twitter">
+                    </a>
+                    <a href="https://dribbble.com/foredesign" class="o-50 glow no-underline mr3">
+                        <img src="../img/icon-dribbble.svg" alt="Dribbble">
+                    </a>
+                    <a href="https://github.com/foredesign" class="o-50 glow no-underline">
+                        <img src="../img/icon-github.svg" alt="GitHub">
+                    </a>
+                </div>
+                <div class="">
+                    &copy; 2011&mdash;2017 Fore Design, Inc.
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="../js/anime.min.js" charset="utf-8"></script>
+    <script src="../js/barba.min.js"></script>
+    <script src="../js/highlight.min.js" charset="utf-8"></script>
+    <script src="../js/languages/twig.min.js"></script>
+</body>
+
+</html>
